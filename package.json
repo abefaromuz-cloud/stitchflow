@@ -1,0 +1,14 @@
+{
+  "name": "stitchflow",
+  "version": "1.0.0",
+  "description": "StitchFlow CRM/ERP для швейного цеха",
+  "scripts": {
+    "build": "npm install --prefix frontend && npm run build --prefix frontend",
+    "start": "npm install --prefix backend && node backend/src/server.js",
+    "migrate": "node backend/src/db/migrate.js",
+    "seed": "node backend/src/db/seed.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
