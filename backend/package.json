@@ -1,7 +1,6 @@
 {
   "name": "stitchflow-backend",
   "version": "1.0.0",
-  "description": "StitchFlow CRM/ERP backend (Этап 1)",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {

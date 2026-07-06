@@ -1,282 +1,146 @@
 import { useEffect, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import api from '../api/client';
 import StatCard from '../components/StatCard';
 
-const EXPENSE_CATEGORY_LABELS = {
-  rent: 'Аренда',
-  utilities: 'Коммунальные услуги',
-  materials: 'Материалы',
-  salary: 'Зарплата',
-  tax: 'Налоги',
-  equipment: 'Оборудование',
-  other: 'Прочее'
-};
-
-const INVOICE_STATUS_LABELS = {
-  unpaid: 'Не оплачен',
-  paid: 'Оплачен',
-  overdue: 'Просрочен',
-  cancelled: 'Отменен'
-};
-
-const INVOICE_STATUS_COLORS = {
-  unpaid: 'bg-gray-100 text-gray-700',
-  paid: 'bg-green-100 text-green-700',
-  overdue: 'bg-red-100 text-red-700',
-  cancelled: 'bg-gray-100 text-gray-400'
-};
+const EXP_CATS = { rent:'Аренда', utilities:'Коммунальные', materials:'Материалы', equipment:'Оборудование', salary:'Зарплаты', other:'Прочее' };
 
 export default function Finance() {
   const [overview, setOverview] = useState(null);
   const [summary, setSummary] = useState([]);
-  const [expenses, setExpenses] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [showExpModal, setShowExpModal] = useState(false);
+  const [expForm, setExpForm] = useState({ category:'rent', amount:'', description:'', expense_date:'' });
   const [loading, setLoading] = useState(true);
-  const [showExpenseModal, setShowExpenseModal] = useState(false);
-  const [expenseForm, setExpenseForm] = useState({ category: 'other', amount: '', description: '', expense_date: '' });
-  const [error, setError] = useState('');
 
   function load() {
     setLoading(true);
-    Promise.all([
-      api.get('/finance/overview'),
-      api.get('/finance/summary'),
-      api.get('/finance/expenses'),
-      api.get('/invoices')
-    ])
-      .then(([overviewRes, summaryRes, expensesRes, invoicesRes]) => {
-        setOverview(overviewRes.data);
-        setSummary(summaryRes.data.map((s) => ({
-          month: new Date(s.period).toLocaleDateString('ru-RU', { month: 'short' }),
-          revenue: Number(s.revenue),
-          expenses: Number(s.expenses),
-          profit: Number(s.profit)
-        })));
-        setExpenses(expensesRes.data);
-        setInvoices(invoicesRes.data);
-      })
-      .finally(() => setLoading(false));
+    Promise.all([api.get('/finance/overview'), api.get('/finance/summary'), api.get('/invoices')])
+      .then(([o,s,inv])=>{ setOverview(o.data); setSummary(s.data); setInvoices(inv.data); })
+      .finally(()=>setLoading(false));
   }
+  useEffect(()=>{ load(); },[]);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function handleAddExpense(e) {
+  async function addExpense(e) {
     e.preventDefault();
-    setError('');
-    try {
-      await api.post('/finance/expenses', expenseForm);
-      setShowExpenseModal(false);
-      setExpenseForm({ category: 'other', amount: '', description: '', expense_date: '' });
-      load();
-    } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.errors?.[0]?.msg || 'Ошибка');
-    }
+    try { await api.post('/finance/expenses', expForm); setShowExpModal(false); load(); }
+    catch(err) { alert(err.response?.data?.error||'Ошибка'); }
   }
 
-  async function handleMarkPaid(id) {
-    try {
-      await api.put(`/invoices/${id}/status`, { status: 'paid' });
-      load();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Ошибка');
-    }
+  async function updateInvoiceStatus(id, status) {
+    try { await api.put(`/invoices/${id}/status`, { status }); load(); }
+    catch(err) { alert(err.response?.data?.error||'Ошибка'); }
   }
 
-  if (loading) return <p className="text-gray-500">Загрузка...</p>;
+  if (loading) return <p className="text-gray-400">Загрузка...</p>;
+
+  const chartData = summary.map(s=>({
+    month: new Date(s.period).toLocaleDateString('ru-RU',{month:'short'}),
+    Доход: Number(s.revenue), Расходы: Number(s.expenses), Прибыль: Number(s.profit)
+  }));
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-navy">Финансы</h1>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Доход (месяц)" value={`$${overview.revenue.toLocaleString()}`} accent="gold" />
-        <StatCard title="Расходы (месяц)" value={`$${overview.expenses.toLocaleString()}`} accent="red" />
-        <StatCard title="Прибыль (месяц)" value={`$${overview.profit.toLocaleString()}`} accent={overview.profit >= 0 ? 'green' : 'red'} />
-        <StatCard title="Долги клиентов" value={`$${overview.client_debts.toLocaleString()}`} />
+    <div className="space-y-5">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-navy">Финансы</h1>
+        <button onClick={()=>setShowExpModal(true)} className="bg-navy text-white px-4 py-2 rounded-lg text-sm font-medium">+ Расход</button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h2 className="font-semibold text-navy mb-3">Доходы / Расходы / Прибыль (12 месяцев)</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={summary}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="revenue" name="Доход" stroke="#D4AF37" strokeWidth={2} />
-            <Line type="monotone" dataKey="expenses" name="Расходы" stroke="#dc2626" strokeWidth={2} />
-            <Line type="monotone" dataKey="profit" name="Прибыль" stroke="#0F1F3D" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Расходы */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="font-semibold text-navy">Расходы</h2>
-            <button
-              onClick={() => setShowExpenseModal(true)}
-              className="text-xs bg-navy text-white px-3 py-1.5 rounded-lg font-medium"
-            >
-              + Добавить
-            </button>
-          </div>
-          <div className="space-y-2 max-h-80 overflow-y-auto">
-            {expenses.map((e) => (
-              <div key={e.id} className="flex justify-between items-center text-sm border-b pb-2">
-                <div>
-                  <p className="font-medium">{e.category_label}</p>
-                  <p className="text-xs text-gray-400">{e.description}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-red-600">-${Number(e.amount).toLocaleString()}</p>
-                  <p className="text-xs text-gray-400">{new Date(e.expense_date).toLocaleDateString('ru-RU')}</p>
-                </div>
-              </div>
-            ))}
-            {expenses.length === 0 && <p className="text-gray-400 text-sm">Расходов пока нет</p>}
-          </div>
+      {overview && (
+        <div className="grid grid-cols-4 gap-3">
+          <StatCard title="Доход (месяц)" value={`₽${Number(overview.revenue).toLocaleString()}`} accent="gold" />
+          <StatCard title="Расходы (месяц)" value={`₽${Number(overview.expenses).toLocaleString()}`} accent="red" />
+          <StatCard title="Прибыль (месяц)" value={`₽${Number(overview.profit).toLocaleString()}`} accent={overview.profit>=0?'green':'red'} />
+          <StatCard title="Долги клиентов" value={`₽${Number(overview.client_debts).toLocaleString()}`} />
         </div>
+      )}
 
-        {/* Расходы по категориям (текущий месяц) */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h2 className="font-semibold text-navy mb-3">Расходы по категориям (месяц)</h2>
-          <div className="space-y-2">
-            {overview.expenses_by_category.map((c) => (
-              <div key={c.category} className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">{c.label}</span>
-                <span className="font-semibold text-navy">${c.total.toLocaleString()}</span>
-              </div>
-            ))}
-            {overview.expenses_by_category.length === 0 && <p className="text-gray-400 text-sm">Нет данных</p>}
-          </div>
-          <div className="mt-4 pt-3 border-t space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Выплаты сотрудникам</span>
-              <span className="font-semibold">{overview.employee_payouts.toLocaleString()} сум</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Налоги (месяц)</span>
-              <span className="font-semibold">${overview.taxes.toLocaleString()}</span>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <p className="font-semibold text-navy mb-3">Доходы / Расходы / Прибыль</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="month" tick={{fontSize:11}} />
+              <YAxis tick={{fontSize:11}} />
+              <Tooltip formatter={v=>`₽${Number(v).toLocaleString()}`} />
+              <Legend wrapperStyle={{fontSize:11}} />
+              <Line type="monotone" dataKey="Доход" stroke="#D4AF37" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Расходы" stroke="#DC2626" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Прибыль" stroke="#0F1F3D" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        {overview && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <p className="font-semibold text-navy mb-3">Расходы по категориям</p>
+            <div className="space-y-2">
+              {overview.expenses_by_category.map(e=>(
+                <div key={e.category} className="flex justify-between text-sm">
+                  <span className="text-gray-500">{EXP_CATS[e.category]||e.category}</span>
+                  <span className="font-semibold text-navy">₽{Number(e.total).toLocaleString()}</span>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Счета */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-5 border-b">
-          <h2 className="font-semibold text-navy">Счета</h2>
-        </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h2 className="font-semibold text-navy mb-3">Счета клиентам</h2>
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-left">
-            <tr>
-              <th className="px-4 py-3">№ Счета</th>
-              <th className="px-4 py-3">Клиент</th>
-              <th className="px-4 py-3">Заказ</th>
-              <th className="px-4 py-3">Сумма к оплате</th>
-              <th className="px-4 py-3">Срок</th>
-              <th className="px-4 py-3">Статус</th>
-              <th className="px-4 py-3"></th>
-            </tr>
+          <thead className="text-gray-400 text-left">
+            <tr><th className="py-2">Номер</th><th className="py-2">Клиент</th><th className="py-2">Сумма</th><th className="py-2">Срок</th><th className="py-2">Статус</th><th className="py-2"></th></tr>
           </thead>
           <tbody>
-            {invoices.map((inv) => (
+            {invoices.map(inv=>(
               <tr key={inv.id} className="border-t">
-                <td className="px-4 py-3 font-medium">{inv.invoice_number}</td>
-                <td className="px-4 py-3">{inv.client_name}</td>
-                <td className="px-4 py-3 text-gray-500">{inv.order_number ? `№${inv.order_number}` : '—'}</td>
-                <td className="px-4 py-3 font-semibold">${Number(inv.total_amount).toLocaleString()}</td>
-                <td className="px-4 py-3">{inv.due_date ? new Date(inv.due_date).toLocaleDateString('ru-RU') : '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${INVOICE_STATUS_COLORS[inv.status]}`}>
-                    {INVOICE_STATUS_LABELS[inv.status]}
+                <td className="py-2 font-medium text-navy">{inv.invoice_number}</td>
+                <td className="py-2">{inv.client_name}</td>
+                <td className="py-2 font-semibold">₽{Number(inv.total_amount).toLocaleString()}</td>
+                <td className="py-2 text-gray-400">{inv.due_date?new Date(inv.due_date).toLocaleDateString('ru-RU'):'—'}</td>
+                <td className="py-2">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    inv.status==='paid'?'bg-green-100 text-green-700':
+                    inv.status==='overdue'?'bg-red-100 text-red-700':'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {inv.status==='paid'?'Оплачен':inv.status==='overdue'?'Просрочен':'Не оплачен'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right space-x-2">
-                  <a
-                    href={`/api/invoices/${inv.id}/pdf`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-navy underline"
-                  >
-                    PDF
-                  </a>
-                  {inv.status === 'unpaid' && (
-                    <button onClick={() => handleMarkPaid(inv.id)} className="text-xs text-green-600 underline">
-                      Оплачен
-                    </button>
-                  )}
+                <td className="py-2">
+                  <div className="flex gap-1">
+                    <a href={`/api/invoices/${inv.id}/pdf`} target="_blank" rel="noreferrer"
+                      className="text-xs bg-navy/5 hover:bg-navy/10 text-navy px-2 py-1 rounded font-medium">PDF</a>
+                    {inv.status!=='paid' && (
+                      <button onClick={()=>updateInvoiceStatus(inv.id,'paid')}
+                        className="text-xs bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 rounded font-medium">Оплачен</button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
-            {invoices.length === 0 && (
-              <tr>
-                <td colSpan="7" className="px-4 py-6 text-center text-gray-400">Счетов пока нет</td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
 
-      {showExpenseModal && (
+      {showExpModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <h2 className="text-lg font-bold text-navy mb-4">Новый расход</h2>
-            <form onSubmit={handleAddExpense} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Категория</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={expenseForm.category}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                >
-                  {Object.entries(EXPENSE_CATEGORY_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Сумма ($)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={expenseForm.amount}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Описание</label>
-                <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={expenseForm.description}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Дата</label>
-                <input
-                  type="date"
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={expenseForm.expense_date}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, expense_date: e.target.value })}
-                />
-              </div>
-              {error && <p className="text-red-600 text-sm">{error}</p>}
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowExpenseModal(false)} className="px-4 py-2 text-sm rounded-lg border">
-                  Отмена
-                </button>
-                <button type="submit" className="px-4 py-2 text-sm rounded-lg bg-navy text-white font-medium">
-                  Добавить
-                </button>
+            <form onSubmit={addExpense} className="space-y-3">
+              <select className="w-full border rounded-lg px-3 py-2 text-sm" value={expForm.category} onChange={e=>setExpForm({...expForm,category:e.target.value})}>
+                {Object.entries(EXP_CATS).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              </select>
+              <input type="number" step="0.01" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Сумма (₽) *"
+                value={expForm.amount} onChange={e=>setExpForm({...expForm,amount:e.target.value})} required />
+              <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Описание"
+                value={expForm.description} onChange={e=>setExpForm({...expForm,description:e.target.value})} />
+              <input type="date" className="w-full border rounded-lg px-3 py-2 text-sm"
+                value={expForm.expense_date} onChange={e=>setExpForm({...expForm,expense_date:e.target.value})} />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={()=>setShowExpModal(false)} className="px-4 py-2 text-sm rounded-lg border">Отмена</button>
+                <button type="submit" className="px-4 py-2 text-sm rounded-lg bg-navy text-white font-medium">Добавить</button>
               </div>
             </form>
           </div>

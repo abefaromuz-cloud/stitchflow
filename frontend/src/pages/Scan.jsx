@@ -2,120 +2,84 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const publicApi = axios.create({ baseURL: '/api' });
-
-const STAGE_ICONS = {
-  received: '📥',
-  cutting: '✂️',
-  sewing: '🧵',
-  overlock: '🪡',
-  ironing: '🔥',
-  qc: '🔍',
-  packing: '📦',
-  shipped: '✅'
-};
+const api = axios.create({ baseURL: '/api' });
+const STAGE_ICONS = { received:'📥', cutting:'✂️', sewing:'🧵', overlock:'🪡', ironing:'🔥', qc:'🔍', packing:'📦', shipped:'✅' };
 
 export default function Scan() {
   const { token } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [employeeId, setEmployeeId] = useState('');
-  const [message, setMessage] = useState('');
-
-  function load() {
-    setLoading(true);
-    publicApi
-      .get(`/qr/scan/${token}`)
-      .then((res) => setData(res.data))
-      .catch((err) => setError(err.response?.data?.error || 'Ошибка загрузки'))
-      .finally(() => setLoading(false));
-  }
+  const [selectedEmp, setSelectedEmp] = useState('');
+  const [completing, setCompleting] = useState('');
+  const [done, setDone] = useState('');
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    api.get(`/qr/scan/${token}`)
+      .then(r => setData(r.data))
+      .catch(() => setError('QR-код недействителен'));
   }, [token]);
 
   async function completeStage(stageName) {
-    setMessage('');
+    setCompleting(stageName);
     try {
-      await publicApi.post(`/qr/scan/${token}/complete-stage`, {
-        stage_name: stageName,
-        employee_id: employeeId || undefined
-      });
-      setMessage('Этап отмечен как выполненный ✅');
-      load();
-    } catch (err) {
-      setMessage(err.response?.data?.error || 'Ошибка');
-    }
+      await api.post(`/qr/scan/${token}/complete-stage`, { stage_name: stageName, employee_id: selectedEmp||null });
+      setDone(stageName);
+      const r = await api.get(`/qr/scan/${token}`);
+      setData(r.data);
+    } catch(err) {
+      alert(err.response?.data?.error||'Ошибка');
+    } finally { setCompleting(''); }
   }
 
-  if (loading) return <div className="p-6 text-center text-gray-500">Загрузка...</div>;
-  if (error) return <div className="p-6 text-center text-red-600">{error}</div>;
-  if (!data) return null;
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center"><p className="text-4xl mb-2">❌</p><p className="text-gray-700">{error}</p></div>
+    </div>
+  );
+  if (!data) return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-400">Загрузка...</p></div>;
 
-  const currentStage = data.stages.find((s) => s.status === 'in_progress');
+  const { order, stages, employees } = data;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto space-y-4">
-        <div className="bg-navy text-white rounded-xl p-4">
-          <h1 className="text-lg font-bold text-gold">StitchFlow</h1>
-          <p className="text-sm">Заказ №{data.order.order_number}</p>
-          <p className="text-xs text-white/70">{data.order.product_name} · {data.order.quantity} шт</p>
+      <div className="max-w-md mx-auto">
+        <div className="bg-navy text-white rounded-xl p-4 mb-4">
+          <h1 className="text-xl font-bold text-gold">StitchFlow QR</h1>
+          <p className="font-semibold mt-1">№{order.order_number}</p>
+          <p className="text-white/60 text-sm">{order.product_name}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Кто выполняет (опционально)</label>
-          <select
-            className="w-full border rounded-lg px-3 py-2 text-sm"
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-          >
-            <option value="">Не указано</option>
-            {data.employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.full_name}</option>
-            ))}
+        {done && <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-green-700 text-sm mb-3">✅ Этап завершён!</div>}
+
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-4">
+          <label className="block text-xs font-medium text-gray-500 mb-1">Выберите себя (необязательно)</label>
+          <select className="w-full border rounded-lg px-3 py-2 text-sm" value={selectedEmp} onChange={e=>setSelectedEmp(e.target.value)}>
+            <option value="">Анонимно</option>
+            {employees.map(e=><option key={e.id} value={e.id}>{e.full_name}</option>)}
           </select>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <h2 className="font-semibold text-navy mb-3">Карта производства</h2>
-          <div className="space-y-2">
-            {data.stages.map((stage) => (
-              <div
-                key={stage.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  stage.status === 'done'
-                    ? 'bg-green-50 border-green-200'
-                    : stage.status === 'in_progress'
-                    ? 'bg-yellow-50 border-yellow-300'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{STAGE_ICONS[stage.stage_name] || '•'}</span>
-                  <span className="text-sm font-medium">{stage.stage_label}</span>
+        <div className="space-y-2">
+          {stages.map(stage=>(
+            <div key={stage.id} className={`bg-white rounded-xl border shadow-sm p-4 flex justify-between items-center ${
+              stage.status==='done'?'border-green-200':stage.status==='in_progress'?'border-yellow-300':'border-gray-100'
+            }`}>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{STAGE_ICONS[stage.stage_name]||'•'}</span>
+                <div>
+                  <p className="font-medium text-navy">{stage.stage_label}</p>
+                  <p className="text-xs text-gray-400">{stage.status==='done'?'✓ Выполнено':stage.status==='in_progress'?'▶ В работе':'Ожидание'}</p>
                 </div>
-                {stage.status === 'in_progress' ? (
-                  <button
-                    onClick={() => completeStage(stage.stage_name)}
-                    className="text-xs bg-navy text-white px-3 py-1.5 rounded-lg font-medium"
-                  >
-                    Завершить
-                  </button>
-                ) : (
-                  <span className="text-xs text-gray-400">
-                    {stage.status === 'done' ? 'Готово' : 'Ожидание'}
-                  </span>
-                )}
               </div>
-            ))}
-          </div>
+              {stage.status==='in_progress' && (
+                <button onClick={()=>completeStage(stage.stage_name)} disabled={completing===stage.stage_name}
+                  className="bg-green-600 text-white text-xs px-3 py-2 rounded-lg font-medium disabled:opacity-50">
+                  {completing===stage.stage_name?'...':'Завершить'}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
-
-        {message && <p className="text-center text-sm text-navy font-medium">{message}</p>}
       </div>
     </div>
   );

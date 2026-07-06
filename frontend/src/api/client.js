@@ -1,27 +1,16 @@
 import axios from 'axios';
-
-const api = axios.create({
-  baseURL: '/api'
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('stitchflow_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+const api = axios.create({ baseURL: '/api' });
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('sf_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('stitchflow_token');
-      localStorage.removeItem('stitchflow_user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
+api.interceptors.response.use(r => r, err => {
+  if (err.response?.status === 401) {
+    localStorage.removeItem('sf_token');
+    localStorage.removeItem('sf_user');
+    window.location.href = '/login';
   }
-);
-
+  return Promise.reject(err);
+});
 export default api;

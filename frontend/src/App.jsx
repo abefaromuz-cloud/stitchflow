@@ -17,16 +17,12 @@ import TelegramSettings from './pages/TelegramSettings';
 import Scan from './pages/Scan';
 import TvDashboard from './pages/TvDashboard';
 import ClientPortal from './pages/ClientPortal';
+import Settings from './pages/Settings';
 
-function isAuthenticated() {
-  return !!localStorage.getItem('stitchflow_token');
-}
+const isAuth = () => !!localStorage.getItem('sf_token');
 
-function ProtectedRoute({ children }) {
-  if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />;
-  }
-  return children;
+function Guard({ children }) {
+  return isAuth() ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -36,14 +32,7 @@ export default function App() {
       <Route path="/scan/:token" element={<Scan />} />
       <Route path="/tv" element={<TvDashboard />} />
       <Route path="/client/:token" element={<ClientPortal />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+      <Route path="/" element={<Guard><Layout /></Guard>}>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetail />} />
@@ -58,6 +47,7 @@ export default function App() {
         <Route path="motivation" element={<Motivation />} />
         <Route path="telegram" element={<TelegramSettings />} />
         <Route path="tv" element={<TvDashboard />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

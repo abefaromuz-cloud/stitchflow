@@ -1,11 +1,10 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Railway даёт DATABASE_URL, локально используем отдельные переменные
 const pool = process.env.DATABASE_URL
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }  // Railway требует SSL
+      ssl: { rejectUnauthorized: false }
     })
   : new Pool({
       host:     process.env.DB_HOST     || 'localhost',
@@ -15,8 +14,6 @@ const pool = process.env.DATABASE_URL
       database: process.env.DB_NAME     || 'stitchflow',
     });
 
-pool.on('error', (err) => {
-  console.error('Unexpected PG client error', err);
-});
+pool.on('error', (err) => console.error('PG error', err));
 
 module.exports = pool;

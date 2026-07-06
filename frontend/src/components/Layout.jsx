@@ -1,66 +1,64 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 const navItems = [
-  { to: '/', label: 'Дашборд', icon: '📊' },
-  { to: '/orders', label: 'Заказы', icon: '🧵' },
-  { to: '/clients', label: 'Клиенты', icon: '🏢' },
-  { to: '/employees', label: 'Сотрудники', icon: '👥' },
-  { to: '/attendance', label: 'Посещаемость', icon: '🗓️' },
-  { to: '/salary', label: 'Зарплата', icon: '💰' },
-  { to: '/warehouse', label: 'Склад', icon: '📦' },
-  { to: '/finance', label: 'Финансы', icon: '📈' },
-  { to: '/analytics', label: 'AI-аналитика', icon: '🤖' },
-  { to: '/motivation', label: 'Мотивация', icon: '🏆' },
-  { to: '/telegram', label: 'Telegram', icon: '✈️' },
-  { to: '/tv', label: 'ТВ-дашборд', icon: '📺' }
+  { to:'/',          label:'Дашборд',      icon:'📊', end:true },
+  { to:'/orders',    label:'Заказы',        icon:'🧵' },
+  { to:'/clients',   label:'Клиенты',       icon:'🏢' },
+  { to:'/employees', label:'Сотрудники',    icon:'👥' },
+  { to:'/attendance',label:'Посещаемость',  icon:'🗓️' },
+  { to:'/salary',    label:'Зарплата',      icon:'💰' },
+  { to:'/warehouse', label:'Склад',         icon:'📦' },
+  { to:'/finance',   label:'Финансы',       icon:'📈' },
+  { to:'/motivation',label:'Мотивация',     icon:'🏆' },
+  { to:'/analytics', label:'AI-аналитика',  icon:'🤖' },
+  { to:'/telegram',  label:'Telegram',      icon:'✈️' },
+  { to:'/tv',        label:'ТВ-дашборд',    icon:'📺' },
+  { to:'/settings',  label:'Настройки',     icon:'⚙️' },
 ];
 
 export default function Layout() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('stitchflow_user') || 'null');
+  const user = JSON.parse(localStorage.getItem('sf_user') || 'null');
 
-  function handleLogout() {
-    localStorage.removeItem('stitchflow_token');
-    localStorage.removeItem('stitchflow_user');
+  function logout() {
+    localStorage.removeItem('sf_token');
+    localStorage.removeItem('sf_user');
     navigate('/login');
   }
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-64 bg-navy text-white flex flex-col">
-        <div className="p-6 border-b border-white/10">
-          <h1 className="text-2xl font-bold text-gold">StitchFlow</h1>
-          <p className="text-xs text-white/60 mt-1">Контроль каждого стежка</p>
+      <aside className="w-56 bg-navy text-white flex flex-col flex-shrink-0">
+        <div className="p-5 border-b border-white/10">
+          <h1 className="text-xl font-bold text-gold">StitchFlow</h1>
+          <p className="text-[10px] text-white/40 mt-0.5">Контроль каждого стежка</p>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => (
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          {navItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.end}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition ${
-                  isActive ? 'bg-gold text-navy font-semibold' : 'text-white/80 hover:bg-white/10'
+                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition ${
+                  isActive ? 'bg-gold text-navy font-semibold' : 'text-white/70 hover:bg-white/10'
                 }`
               }
             >
-              <span>{item.icon}</span>
+              <span className="text-base">{item.icon}</span>
               <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/10">
-          <p className="text-sm font-medium">{user?.full_name}</p>
-          <p className="text-xs text-white/50 mb-3">{user?.role === 'admin' ? 'Администратор' : user?.role}</p>
-          <button
-            onClick={handleLogout}
-            className="w-full text-sm bg-white/10 hover:bg-white/20 rounded-lg py-2 transition"
-          >
+        <div className="p-3 border-t border-white/10">
+          <p className="text-xs font-medium text-white/80">{user?.full_name}</p>
+          <p className="text-[10px] text-white/40 mb-2">{user?.role}</p>
+          <button onClick={logout} className="w-full text-xs bg-white/10 hover:bg-white/20 rounded-lg py-1.5 transition">
             Выйти
           </button>
         </div>
       </aside>
-      <main className="flex-1 bg-gray-50 p-8 overflow-y-auto">
+      <main className="flex-1 bg-gray-50 p-6 overflow-y-auto">
         <Outlet />
       </main>
     </div>

@@ -3,65 +3,39 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-const authRoutes        = require('./routes/auth');
-const dashboardRoutes   = require('./routes/dashboard');
-const clientsRoutes     = require('./routes/clients');
-const employeesRoutes   = require('./routes/employees');
-const ordersRoutes      = require('./routes/orders');
-const attendanceRoutes  = require('./routes/attendance');
-const salaryRoutes      = require('./routes/salary');
-const materialsRoutes   = require('./routes/materials');
-const financeRoutes     = require('./routes/finance');
-const invoicesRoutes    = require('./routes/invoices');
-const aiRoutes          = require('./routes/ai');
-const telegramRoutes    = require('./routes/telegram');
-const qrRoutes          = require('./routes/qr');
-const pointsRoutes      = require('./routes/points');
-const clientPortalRoutes = require('./routes/clientPortal');
-const tvRoutes          = require('./routes/tv');
-
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-// ── API ────────────────────────────────────────────────────────────────────
+// Routes
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'StitchFlow API' }));
+app.use('/api/auth',          require('./routes/auth'));
+app.use('/api/dashboard',     require('./routes/dashboard'));
+app.use('/api/clients',       require('./routes/clients'));
+app.use('/api/employees',     require('./routes/employees'));
+app.use('/api/orders',        require('./routes/orders'));
+app.use('/api/attendance',    require('./routes/attendance'));
+app.use('/api/salary',        require('./routes/salary'));
+app.use('/api/materials',     require('./routes/materials'));
+app.use('/api/finance',       require('./routes/finance'));
+app.use('/api/invoices',      require('./routes/invoices'));
+app.use('/api/ai',            require('./routes/ai'));
+app.use('/api/telegram',      require('./routes/telegram'));
+app.use('/api/qr',            require('./routes/qr'));
+app.use('/api/points',        require('./routes/points'));
+app.use('/api/client-portal', require('./routes/clientPortal'));
+app.use('/api/tv',            require('./routes/tv'));
 
-app.use('/api/auth',          authRoutes);
-app.use('/api/dashboard',     dashboardRoutes);
-app.use('/api/clients',       clientsRoutes);
-app.use('/api/employees',     employeesRoutes);
-app.use('/api/orders',        ordersRoutes);
-app.use('/api/attendance',    attendanceRoutes);
-app.use('/api/salary',        salaryRoutes);
-app.use('/api/materials',     materialsRoutes);
-app.use('/api/finance',       financeRoutes);
-app.use('/api/invoices',      invoicesRoutes);
-app.use('/api/ai',            aiRoutes);
-app.use('/api/telegram',      telegramRoutes);
-app.use('/api/qr',            qrRoutes);
-app.use('/api/points',        pointsRoutes);
-app.use('/api/client-portal', clientPortalRoutes);
-app.use('/api/tv',            tvRoutes);
-
-// ── Static frontend ────────────────────────────────────────────────────────
-// Railway builds frontend into frontend/dist via the root "build" script
+// Serve built frontend
 const DIST = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(DIST));
+app.get('*', (req, res) => res.sendFile(path.join(DIST, 'index.html')));
 
-// SPA fallback — все не-API маршруты отдают index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(DIST, 'index.html'));
-});
-
-// ── Error handler ──────────────────────────────────────────────────────────
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`StitchFlow запущен на порту ${PORT}`);
-});
+app.listen(PORT, () => console.log(`StitchFlow запущен на порту ${PORT}`));
