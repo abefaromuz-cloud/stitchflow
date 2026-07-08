@@ -6,6 +6,7 @@
     "build": "npm install --prefix frontend && npm run build --prefix frontend",
     "start": "npm install --prefix backend && node backend/src/server.js",
     "migrate": "node backend/src/db/migrate.js",
+    "migrate:workshop": "node backend/src/db/migrate_workshop.js",
     "seed": "node backend/src/db/seed.js"
   },
   "engines": {

@@ -18,6 +18,7 @@ import Scan from './pages/Scan';
 import TvDashboard from './pages/TvDashboard';
 import ClientPortal from './pages/ClientPortal';
 import Settings from './pages/Settings';
+import Workshop from './pages/Workshop';
 
 const isAuth = () => !!localStorage.getItem('sf_token');
 
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/client/:token" element={<ClientPortal />} />
       <Route path="/" element={<Guard><Layout /></Guard>}>
         <Route index element={<Dashboard />} />
+        <Route path="workshop" element={<Workshop />} />
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetail />} />
         <Route path="employees" element={<Employees />} />

@@ -25,6 +25,7 @@ app.use('/api/qr',            require('./routes/qr'));
 app.use('/api/points',        require('./routes/points'));
 app.use('/api/client-portal', require('./routes/clientPortal'));
 app.use('/api/tv',            require('./routes/tv'));
+app.use('/api/workshop',      require('./routes/workshop'));
 
 // Serve built frontend
 const DIST = path.join(__dirname, '..', '..', 'frontend', 'dist');
