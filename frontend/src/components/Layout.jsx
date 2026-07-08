@@ -31,7 +31,7 @@ export default function Layout() {
     <div className="flex min-h-screen">
       <aside className="w-56 bg-navy text-white flex flex-col flex-shrink-0">
         <div className="p-5 border-b border-white/10">
-          <h1 className="text-xl font-bold text-gold">StitchFlow</h1>
+          <h1 className="text-xl font-bold text-gold">Швейцех</h1>
           <p className="text-[10px] text-white/40 mt-0.5">Контроль каждого стежка</p>
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
